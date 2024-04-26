@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Task Manager</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+      }
+      label {
+        margin-bottom: 5px;
+      }
+      input,
+      textarea {
+        margin-bottom: 10px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        padding: 5px 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #ccc;
+        margin: 20px 0;
+      }
+      .task {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .task-title {
+        flex: 1;
+        margin-right: 10px;
+      }
+      .task-actions {
+        display: flex;
+      }
+      .task-action {
+        margin-left: 10px;
+        padding: 5px 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .task-action:hover {
+        background-color: #45a049;
+      }
+      .task-action-delete {
+        background-color: #f44336;
+      }
+      .task-action-delete:hover {
+        background-color: #da190b;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Task Manager</h1>
+    <form id="new-task-form">
+      <label for="title">Title:</label>
+      <input type="text" id="title" name="title" required />
+
+      <label for="description">Description:</label>
+      <textarea id="description" name="description" required></textarea>
+
+      <label for="completed">Completed:</label>
+      <input type="checkbox" id="completed" name="completed" />
+
+      <button type="submit">Create Task</button>
+    </form>
+    <hr />
+    <h2>Tasks</h2>
+    <div id="tasks"></div>
+
+    <script>
+      // Get the form and create a new task when it's submitted
+      const form = document.getElementById("new-task-form");
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const title = document.getElementById("title").value;
+        const description = document.getElementById("description").value;
+        const completed = document.getElementById("completed").checked;
+
+        const response = await fetch("/api/tasks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title, description, completed }),
+        });
+
+        if (response.ok) {
+          const task = await response.json();
+          displayTask(task);
+          form.reset();
+        } else {
+          console.error("Error creating task:", response.statusText);
+        }
+      });
+
+      // Get all tasks and display them
+      const tasksDiv = document.getElementById("tasks");
+async function fetchTasks() {
+        const response = await fetch("/api/tasks");
+        const tasks = await response.json();
+        return tasks;
+      }
+
+      async function displayTasks(tasks) {
+        tasksDiv.innerHTML = "";
+        for (const task of tasks) {
+          displayTask(task);
+        }
+      }
+
+      function displayTask(task) {
+        const taskDiv = document.createElement("div");
+        taskDiv.classList.add("task");
+
+        const titleDiv = document.createElement("div");
+        titleDiv.classList.add("task-title");
+        titleDiv.textContent = task.title;
+        taskDiv.appendChild(titleDiv);
+
+        const descriptionDiv = document.createElement("div");
+        descriptionDiv.classList.add("task-description");
+        descriptionDiv.textContent = task.description;
+        taskDiv.appendChild(descriptionDiv);
+
+        const completedDiv = document.createElement("div");
+        completedDiv.classList.add("task-completed");
+        completedDiv.textContent = task.completed ? "Completed" : "Not Completed";
+        taskDiv.appendChild(completedDiv);
+
+        const actionsDiv = document.createElement("div");
+        actionsDiv.classList.add("task-actions");
+
+        const editButton = document.createElement("button");
+        editButton.classList.add("task-action", "task-action-edit");
+        editButton.textContent = "Edit";
+        editButton.addEventListener("click", async () => {
+          const newTitle = prompt("Enter a new title:");
+          const newDescription = prompt("Enter a new description:");
+          const newCompleted = confirm("Is the task completed?");
+
+          if (newTitle && newDescription) {
+            const response = await fetch(`/api/tasks/${task.id}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ title: newTitle, description: newDescription, completed: newCompleted }),
+            });
+
+            if (response.ok) {
+              const updatedTask = await response.json();
+              titleDiv.textContent = updatedTask.title;
+              descriptionDiv.textContent = updatedTask.description;
+              completedDiv.textContent = updatedTask.completed ? "Completed" : "Not Completed";
+            } else {
+              console.error("Error updating task:", response.statusText);
+            }
+          }
+        });
+        actionsDiv.appendChild(editButton);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.classList.add("task-action", "task-action-delete");
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", async () => {
+          const response = await fetch(`/api/tasks/${task.id}`, {
+            method: "DELETE",
+          });
+
+          if (response.ok) {
+            tasksDiv.removeChild(taskDiv);
+          } else {
+            console.error("Error deleting task:", response.statusText);
+          }
+        });
+        actionsDiv.appendChild(deleteButton);
+
+        taskDiv.appendChild(actionsDiv);
+        tasksDiv.appendChild(taskDiv);
+      }
+
+      fetchTasks().then(displayTasks);
+    </script>
+  </body>
+</html>
